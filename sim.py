@@ -1,4 +1,4 @@
-import random
+import random, time
 import pygame
 
 # waypoints = []
@@ -13,11 +13,16 @@ target = (width-2, height-2)
 
 density = 0.5
 
-EMPTY = True
-BLOCKED = False
-EDGE = BLOCKED#"XX"
+wall_destroying_cost = 100
+
+autoplay_interval = 0.2
+
+EMPTY = 0
+WALL = 1
+EDGE = WALL#"XX"
 START = EMPTY#"@@"
 END = EMPTY#"()"
+DESTROYED = 2
 
 def create_map():
     global map_contents
@@ -31,11 +36,11 @@ def create_map():
                 content = END
 
             elif x == 0 or y == 0 or x == width-1 or y == height-1:
-                content = BLOCKED
+                content = WALL
             
 
             elif random.random() < density:
-                content = BLOCKED
+                content = WALL
             else:
                 content = EMPTY
 
@@ -71,18 +76,18 @@ class Pathfinder:
             self.g = g
             self.h = h
         
-        def trace_to_head(self):
+        def path_to_head(self):
             if self.parent:
-                trace = self.parent.trace_to_head()
-                trace.append(self)
-                return trace
+                path = self.parent.path_to_head()
+                path.append(self.pos)
+                return path
             else:
                 return [self]
         
-        def trace_from_head(self):
-            trace = self.trace_to_head()
-            trace.reverse()
-            return trace
+        def path_from_head(self):
+            path = self.path_to_head()
+            path.reverse()
+            return path
     
     class NoPathFound(Exception):
         "Raised when pathfinding search fails, either from an impossible map or from a max depth escape"
@@ -95,22 +100,44 @@ class Pathfinder:
         if map_data:
             self.add_map_data(map_data)
 
-        self._planned_path_stack = []
+        self.path_stack = []
         self.recalculate_path()
 
-        self.last_move = self.position
-    
-    def move(self):
-        self.last_move = self.position
-        if len(self._planned_path_stack) > 0:
-            self.position = self._planned_path_stack.pop().pos
-            return True
+        # self.last_pos = self.position
+
+    def do_action(self):
+        if len(self.path_stack) > 0:
+            # self.last_pos = self.position
+            next_pos = self.path_stack[-1]
+            next_tile = None
+            if next_pos in self.map_data:
+                next_tile = self.map_data[next_pos]
+
+            # break
+            if next_tile == WALL:
+                del self.map_data[next_pos]
+                return ("break", next_pos)
+            
+            # move
+            else:
+                # self.position = next_pos.pos
+                self.path_stack.pop()
+                return ("move", next_pos)
+            
         else:
-            return False
+            return ()
     
-    def apply_collision(self):
-        self.position = self.last_move
-        self._planned_path_stack = []
+    # def move(self):
+    #     self.last_pos = self.position
+    #     if len(self.path_stack) > 0:
+    #         self.position = self.path_stack.pop().pos
+    #         return True
+    #     else:
+    #         return False
+    
+    # def apply_collision(self):
+    #     self.position = self.last_pos
+    #     self.path_stack = []
 
     def add_map_data(self, data):
         for location in data:
@@ -118,7 +145,7 @@ class Pathfinder:
     
     def recalculate_path(self, max_depth=1000):
         if self.position == self.target:
-            self._planned_path_stack = []
+            self.path_stack = []
             return
 
         # (x, y) : Node
@@ -153,13 +180,18 @@ class Pathfinder:
 
             # add more locations
             for location in self.get_possible_moves(best_location):
-                if location in self.map_data and self.map_data[location] == BLOCKED:
-                    continue
+                g = best_node.g
+
+                if location in self.map_data and self.map_data[location] == WALL:
+                    g += wall_destroying_cost
+                else:
+                    g += 1
+
+
                 if location in closed_locations:
                     continue
                     
 
-                g = best_node.g + 1
 
                 if location in open_locations:
                     existing_node = open_locations[location]
@@ -167,7 +199,7 @@ class Pathfinder:
                         existing_node.parent = best_node
                 
                 else:
-                    node = self.Node(location, best_node, best_node.g + 1, self.calculate_h_cost(location))
+                    node = self.Node(location, best_node, g, self.calculate_h_cost(location))
                     open_locations[location] = node
                     depth += 1
 
@@ -175,8 +207,8 @@ class Pathfinder:
                 
                     if location == self.target:
                         # target found!
-                        self._planned_path_stack = node.trace_from_head()
-                        self._planned_path_stack.pop()
+                        self.path_stack = node.path_from_head()
+                        self.path_stack.pop()
                         return
 
 
@@ -239,6 +271,35 @@ CYAN   =   0, 255, 255
 
 tile_display_size = 25
 
+autoplay = False
+last_move_time = time.time()
+
+
+def handle_action(action):
+    if len(action):
+        assert len(action) == 2
+
+        success = False
+
+        if action[0] == "move":
+            pos = action[1]
+            x, y = pos
+            if map_contents[x][y] == WALL:
+                bot.add_map_data({pos: WALL})
+            else:
+                bot.position = pos
+                success = True
+        
+        elif action[0] == "break":
+            pos = action[1]
+            x, y = pos
+            if map_contents[x][y] == WALL:
+                map_contents[x][y] = DESTROYED
+                success = True
+        
+        if not success:
+            bot.recalculate_path()
+
 
 
 pygame.init()
@@ -254,45 +315,42 @@ while window_valid:
             window_valid = False  # Flag that we are done so we exit this loop
             break
         elif event.type == pygame.KEYDOWN:
-            # if event.key == pygame.key.K_SPACE:
+            if not autoplay:
+                handle_action(bot.do_action())
+                last_move_time = time.time()
 
-            bot.move()
+            if event.key == pygame.K_SPACE:
+                autoplay = not autoplay
 
-            bot.add_map_data({bot.position: map_contents[bot.position[0]][bot.position[1]]})
-            if map_contents[bot.position[0]][bot.position[1]] == BLOCKED:
-                bot.apply_collision()
-                try:
-                    bot.recalculate_path()
-                except Pathfinder.NoPathFound:
-                    pass
+    if autoplay and time.time()-last_move_time >= autoplay_interval:
+        handle_action(bot.do_action())
+        last_move_time = time.time()
+        
 
-            # for location in bot.get_possible_moves(bot.position):
-            #     try:
-            #         bot.add_map_data({location: map_contents[location[0]][location[1]]})
-            #     except IndexError:
-            #         pass
-                
-            try:
-                bot.recalculate_path()
-            except Pathfinder.NoPathFound:
-                pass
+
+    bot.add_map_data({bot.position: map_contents[bot.position[0]][bot.position[1]]})
+    if map_contents[bot.position[0]][bot.position[1]] == WALL:
+        bot.apply_collision()
+        try:
+            bot.recalculate_path()
+        except Pathfinder.NoPathFound:
+            pass
 
 
 
     screen.fill(GREY)
 
-    # for x, column in enumerate(map_contents):
-    #     for y, tile in enumerate(column):
-    #         if tile == EMPTY:
-    #             color = WHITE
-    #         elif tile == BLOCKED:
-    #             color = BLACK
     for location, tile in bot.map_data.items():
-        x, y = location
         if tile == EMPTY:
             color = WHITE
-        elif tile == BLOCKED:
+        elif tile == WALL:
             color = BLACK
+        elif tile == DESTROYED:
+            color = RED
+        else:
+            color = PURPLE
+
+        x, y = location
         pygame.draw.rect(screen, color, (
             x*tile_display_size, y*tile_display_size,
             tile_display_size, tile_display_size
@@ -302,10 +360,10 @@ while window_valid:
 
     pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in bot.position], 10)
 
-    for i in range(len(bot._planned_path_stack)-1):
+    for i in range(len(bot.path_stack)-1):
         pygame.draw.line(screen, GREEN,
-            [(j+0.5)*tile_display_size for j in bot._planned_path_stack[i].pos],
-            [(j+0.5)*tile_display_size for j in bot._planned_path_stack[i+1].pos],
+            [(j+0.5)*tile_display_size for j in bot.path_stack[i]],
+            [(j+0.5)*tile_display_size for j in bot.path_stack[i+1]],
         )
 
     
@@ -313,4 +371,4 @@ while window_valid:
 
     
 
-    assert map_contents[bot.position[0]][bot.position[1]] == EMPTY
+    assert map_contents[bot.position[0]][bot.position[1]] != WALL, map_contents[bot.position[0]][bot.position[1]]
