@@ -185,6 +185,13 @@ class Pathfinder:
 
 bot = Pathfinder(target, start)
 
+for location in bot.get_possible_moves(bot.position):
+    try:
+        bot.add_map_data({location: map_contents[location[0]][location[1]]})
+    except IndexError:
+        pass
+bot.recalculate_path()
+
 # for x in range(width):
 #     for y in range(height):
 #         bot.add_map_data({(x, y): map_contents[x][y]})
@@ -240,17 +247,22 @@ while window_valid:
 
     screen.fill(GREY)
 
-    for x, column in enumerate(map_contents):
-        for y, tile in enumerate(column):
-            if tile == EMPTY:
-                color = WHITE
-            elif tile == BLOCKED:
-                color = BLACK
-
-            pygame.draw.rect(screen, color, (
-                x*tile_display_size, y*tile_display_size,
-                tile_display_size, tile_display_size
-            ))
+    # for x, column in enumerate(map_contents):
+    #     for y, tile in enumerate(column):
+    #         if tile == EMPTY:
+    #             color = WHITE
+    #         elif tile == BLOCKED:
+    #             color = BLACK
+    for location, tile in bot.map_data.items():
+        x, y = location
+        if tile == EMPTY:
+            color = WHITE
+        elif tile == BLOCKED:
+            color = BLACK
+        pygame.draw.rect(screen, color, (
+            x*tile_display_size, y*tile_display_size,
+            tile_display_size, tile_display_size
+        ))
     
     pygame.draw.circle(screen, RED, [(i+0.5)*tile_display_size for i in target], 5)
 
