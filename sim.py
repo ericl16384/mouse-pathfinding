@@ -3,15 +3,15 @@ import pygame
 
 # waypoints = []
 
-width = 10#35
-height = 10#20
+width = 7#35
+height = 7#20
 
 # start = (random.randint(0, width-1), random.randint(0, height-1))
 # target = (random.randint(0, width-1), random.randint(0, height-1))
 start = (1, 1)
 target = (width-2, height-2)
 
-density = 1#0.4
+density = 0.4
 
 wall_destroying_cost = 1000
 
@@ -75,7 +75,6 @@ class Pathfinder:
             self.f = g + h
             self.g = g
             self.h = h
-            self.children = []
         
         def path_to_head(self):
             if self.parent:
@@ -109,10 +108,8 @@ class Pathfinder:
         self._open = {}
         self._closed = {}
 
-        self.pending_map_data = {}
-
         self.path_stack = []
-        self.recalculate_path(True)
+        self.recalculate_path()
 
         # self.last_pos = self.position
 
@@ -138,23 +135,17 @@ class Pathfinder:
 
     def add_map_data(self, data):
         for location in data:
-            self.pending_map_data[location] = data[location]
+            self.map_data[location] = data[location]
     
-    def recalculate_path(self, do_reset=False, max_depth=10000):
-        if do_reset:
-            self._open = {}
-            self._closed = {}
-            self._open[self.position] = self.Node(self.position, None, 0, self.calculate_h_cost(self.position))
-
-        for pos in self.pending_map_data:
-            self.map_data[pos] = self.pending_map_data[pos]
-            self.reopen_node(pos)
-        self.pending_map_data = {}
-
+    def recalculate_path(self, max_depth=10000):
+        self._open = {}
+        self._closed = {}
 
         if self.position == self.target:
             self.path_stack = []
             return
+
+        self._open[self.position] = self.Node(self.position, None, 0, self.calculate_h_cost(self.position))
 
         depth = 1
         while depth < max_depth:
@@ -197,7 +188,6 @@ class Pathfinder:
                 
                 else:
                     node = self.Node(location, best_node, g, self.calculate_h_cost(location))
-                    node.parent.children.append(node)
                     self._open[location] = node
                     depth += 1
                 
@@ -209,33 +199,8 @@ class Pathfinder:
     
         raise self.MaxDepthReached
 
-    def delete_node(self, location):
-        if location in self._closed:
-            node = self._closed[location]
-            del self._closed[location]
-        elif location in self._open:
-            node = self._open[location]
-            del self._open[location]
-        
-        if node.parent:
-            node.parent.children.remove(node)
-        
-        for c in node.children:
-            self.delete_node(c.pos)
 
-    def reopen_node(self, location):
-        if location in self._closed:
-            node = self._closed[location]
-            self._open[location] = node
-            del self._closed[location]
 
-            for c in node.children:
-                self.delete_node(c.pos)
-
-            return True
-        else:
-            return False
-    
 
     def calculate_h_cost(self, location):
         return abs(location[0] - self.target[0]) + abs(location[1] - self.target[1])
@@ -304,8 +269,7 @@ def handle_action(action):
             if map_contents[x][y] == WALL:
                 bot.add_map_data({pos: WALL})
             else:
-                print("DEBUG")
-                # bot.position = pos
+                bot.position = pos
                 success = True
         
         elif action[0] == "break":
@@ -347,11 +311,7 @@ while window_valid:
 
 
     bot.add_map_data({bot.position: map_contents[bot.position[0]][bot.position[1]]})
-
-
-
     if map_contents[bot.position[0]][bot.position[1]] == WALL:
-        assert False
         bot.apply_collision()
         bot.recalculate_path()
     
@@ -359,7 +319,7 @@ while window_valid:
 
     if not bot.path_stack:
         bot.target = start
-        bot.recalculate_path(True)
+        bot.recalculate_path()
 
 
 
@@ -386,22 +346,13 @@ while window_valid:
 
     pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in bot.position], 10)
 
-    for node in bot._closed.values():
-        if not node.parent:
-            continue
-        
-        pygame.draw.line(screen, GREEN,
-            [(j+0.5)*tile_display_size for j in node.pos],
-            [(j+0.5)*tile_display_size for j in node.parent.pos],
-        )
-
     for i in range(len(bot.path_stack)-1):
-        pygame.draw.line(screen, BLUE,
+        pygame.draw.line(screen, GREEN,
             [(j+0.5)*tile_display_size for j in bot.path_stack[i]],
             [(j+0.5)*tile_display_size for j in bot.path_stack[i+1]],
         )
     if bot.path_stack:
-        pygame.draw.line(screen, BLUE,
+        pygame.draw.line(screen, GREEN,
             [(i+0.5)*tile_display_size for i in bot.position],
             [(i+0.5)*tile_display_size for i in bot.path_stack[-1]]
         )
