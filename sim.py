@@ -104,6 +104,10 @@ class Pathfinder:
         if map_data:
             self.add_map_data(map_data)
 
+        # (x, y) : Node
+        self._open = {}
+        self._closed = {}
+
         self.path_stack = []
         self.recalculate_path()
 
@@ -134,34 +138,33 @@ class Pathfinder:
             self.map_data[location] = data[location]
     
     def recalculate_path(self, max_depth=10000):
+        self._open = {}
+        self._closed = {}
+
         if self.position == self.target:
             self.path_stack = []
             return
 
-        # (x, y) : Node
-        closed_locations = {}
-        open_locations = {}
-
-        open_locations[self.position] = self.Node(self.position, None, 0, self.calculate_h_cost(self.position))
+        self._open[self.position] = self.Node(self.position, None, 0, self.calculate_h_cost(self.position))
 
         depth = 1
         while depth < max_depth:
-            if len(open_locations) == 0:
+            if len(self._open) == 0:
                 raise Pathfinder.NoPath
 
             # find cheapest node
             best_location = None
             best_cost = 10**100
             best_node = None
-            for location, node in open_locations.items():
+            for location, node in self._open.items():
                 if node.f < best_cost:
                     best_cost = node.f
                     best_location = location
                     best_node = node
 
             # bookkeeping
-            closed_locations[best_location] = open_locations[best_location]
-            del open_locations[best_location]
+            self._closed[best_location] = self._open[best_location]
+            del self._open[best_location]
 
             # add more locations
             for location in self.get_possible_moves(best_location):
@@ -173,35 +176,29 @@ class Pathfinder:
                     g += 1
 
 
-                if location in closed_locations:
+                if location in self._closed:
                     continue
                     
 
 
-                if location in open_locations:
-                    existing_node = open_locations[location]
+                if location in self._open:
+                    existing_node = self._open[location]
                     if g < existing_node.g:
                         existing_node.parent = best_node
                 
                 else:
                     node = self.Node(location, best_node, g, self.calculate_h_cost(location))
-                    open_locations[location] = node
+                    self._open[location] = node
                     depth += 1
-
-                    # print(self.map_data[location])
                 
                     if location == self.target:
                         # target found!
                         self.path_stack = node.path_from_head()
                         self.path_stack.pop()
                         return
-
-
-            # print(open_locations)
-            # print(closed_locations)
-            # return
     
         raise self.MaxDepthReached
+
 
 
 
