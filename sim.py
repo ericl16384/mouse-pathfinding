@@ -133,6 +133,8 @@ class Pathfinder:
 
             # add more locations
             for location in self.get_possible_moves(best_location):
+                if location in self.map_data:
+                    print("BLOCKED")
                 if location in self.map_data and self.map_data[location] == BLOCKED:
                     continue
                 if location in closed_locations:
@@ -180,6 +182,14 @@ class Pathfinder:
 
 
 bot = Pathfinder(target, start)
+
+for x in range(width):
+    for y in range(height):
+        bot.add_map_data({(x, y): map_contents[x][y]})
+
+bot.recalculate_path()
+
+print(bot.map_data)
 
 
 # Colors
