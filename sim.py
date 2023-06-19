@@ -230,6 +230,10 @@ bot.add_map_data({bot.position: EMPTY})
 
 
 
+
+
+
+
 for x in range(width):
     for y in range(height):
         if x == 0 or y == 0 or x == width-1 or y == height-1:
@@ -290,12 +294,12 @@ def handle_action(action):
                 map_contents[x][y] = DESTROYED
                 success = True
         
-        # for p in bot.get_possible_moves(pos):
-        #     x, y = p
-        #     bot.add_map_data({p: map_contents[x][y]})
+        for p in bot.get_possible_moves(bot.position):
+            x, y = p
+            bot.add_map_data({p: map_contents[x][y]})
         
-        if not success:
-            bot.recalculate_path()
+        # if not success:
+        bot.recalculate_path()
 
 
 
@@ -306,6 +310,8 @@ clock = pygame.time.Clock()
 window_valid = True
 while window_valid:
     clock.tick(60)
+
+
 
     for event in pygame.event.get():  # User did something
         if event.type == pygame.QUIT:  # If user clicked close
