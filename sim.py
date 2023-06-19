@@ -13,10 +13,10 @@ target = (width-2, height-2)
 
 density = 0.4
 
-wall_destroying_cost = 10**6
+wall_destroying_cost = 10**3
 
 tile_display_size = 10
-autoplay_interval = 0#0.5
+autoplay_interval = 0#.1#0.5
 
 EMPTY = 0
 WALL = 1
@@ -138,7 +138,7 @@ class Pathfinder:
         for location in data:
             self.map_data[location] = data[location]
     
-    def recalculate_path(self, max_depth=10000):
+    def recalculate_path(self, max_depth=1000):
         self._open = {}
         self._closed = {}
 
@@ -148,8 +148,8 @@ class Pathfinder:
 
         self._open[self.position] = self.Node(self.position, None, 0, self.calculate_h_cost(self.position))
 
-        depth = 1
-        while depth < max_depth:
+        # depth = 1
+        while len(self._closed) < max_depth:
             if len(self._open) == 0:
                 raise Pathfinder.NoPath
 
@@ -166,6 +166,7 @@ class Pathfinder:
             # bookkeeping
             self._closed[best_location] = self._open[best_location]
             del self._open[best_location]
+            # depth += 1
 
             # add more locations
             for location in self.get_possible_moves(best_location):
@@ -193,15 +194,23 @@ class Pathfinder:
                 else:
                     node = self.Node(location, best_node, g, self.calculate_h_cost(location))
                     self._open[location] = node
-                    depth += 1
                 
                     if location == self.target:
                         # target found!
                         self.path_stack = node.path_from_head()
                         self.path_stack.pop()
-                        return
+                        return True
     
-        raise self.MaxDepthReached
+        # raise self.MaxDepthReached
+        best_cost = 0
+        best_node = None
+        for node in self._open.values():
+            if node.g > best_cost:
+                best_cost = node.g
+                best_node = node
+        self.path_stack = node.parent.path_from_head()
+        self.path_stack.pop()
+        return False
 
 
 
@@ -230,6 +239,8 @@ bot.add_map_data({bot.position: EMPTY})
 
 
 
+# map_contents[1][0] = EMPTY
+# map_contents[width-1][height-2] = EMPTY
 
 
 
@@ -378,6 +389,11 @@ while window_valid:
             [(j+0.5)*tile_display_size for j in node.pos],
             [(j+0.5)*tile_display_size for j in node.parent.pos],
         )
+        # font = pygame.font.Font("freesansbold.ttf", 15)
+        # text = font.render(f"{round(node.g)}/{round(node.h)}", True, BLACK, WHITE)
+        # textRect = text.get_rect()
+        # textRect.center = [(i+0.5)*tile_display_size for i in node.pos]
+        # screen.blit(text, textRect)
 
     for i in range(len(bot.path_stack)-1):
         pygame.draw.line(screen, BLUE,
