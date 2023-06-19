@@ -3,8 +3,8 @@ import pygame
 
 # waypoints = []
 
-width = 7#35
-height = 7#20
+width = 90
+height = 50
 
 # start = (random.randint(0, width-1), random.randint(0, height-1))
 # target = (random.randint(0, width-1), random.randint(0, height-1))
@@ -13,9 +13,10 @@ target = (width-2, height-2)
 
 density = 0.4
 
-wall_destroying_cost = 1000
+wall_destroying_cost = 10**6
 
-autoplay_interval = 0.5
+tile_display_size = 10
+autoplay_interval = 0#0.5
 
 EMPTY = 0
 WALL = 1
@@ -46,19 +47,19 @@ def create_map():
 
             map_contents[x].append(content)
 
-def text_map():
-    map = ""
-    map += EDGE * (width + 2) + "\n"
-    for y in range(height-1, -1, -1):
-        map += EDGE
-        for x in range(width):
-            map += str(map_contents[x][y])
-        map += "XX\n"
-    map += EDGE * (width + 2) + "\n"
-    return map
+# def text_map():
+#     map = ""
+#     map += EDGE * (width + 2) + "\n"
+#     for y in range(height-1, -1, -1):
+#         map += EDGE
+#         for x in range(width):
+#             map += str(map_contents[x][y])
+#         map += "XX\n"
+#     map += EDGE * (width + 2) + "\n"
+#     return map
 
-def print_map():
-    print(text_map())
+# def print_map():
+#     print(text_map())
 
 create_map()
 # print_map()
@@ -170,10 +171,13 @@ class Pathfinder:
             for location in self.get_possible_moves(best_location):
                 g = best_node.g
 
-                if location in self.map_data and self.map_data[location] == WALL:
-                    g += wall_destroying_cost
+                if location in self.map_data:
+                    if self.map_data[location] == WALL:
+                        g += wall_destroying_cost
+                    else:
+                        g += 1
                 else:
-                    g += 1
+                    g += 1.01
 
 
                 if location in self._closed:
@@ -224,6 +228,14 @@ bot = Pathfinder(target, start)
 #         pass
 bot.add_map_data({bot.position: EMPTY})
 
+
+
+for x in range(width):
+    for y in range(height):
+        if x == 0 or y == 0 or x == width-1 or y == height-1:
+            bot.add_map_data({(x, y): map_contents[x][y]})
+
+
 bot.recalculate_path()
 
 # for x in range(width):
@@ -250,9 +262,6 @@ PURPLE = 255,   0, 255
 CYAN   =   0, 255, 255
 
 
-
-tile_display_size = 25
-
 autoplay = False
 last_move_time = time.time()
 
@@ -266,7 +275,9 @@ def handle_action(action):
         if action[0] == "move":
             pos = action[1]
             x, y = pos
+
             if map_contents[x][y] == WALL:
+                # collision knowledge
                 bot.add_map_data({pos: WALL})
             else:
                 bot.position = pos
@@ -278,6 +289,10 @@ def handle_action(action):
             if map_contents[x][y] == WALL:
                 map_contents[x][y] = DESTROYED
                 success = True
+        
+        # for p in bot.get_possible_moves(pos):
+        #     x, y = p
+        #     bot.add_map_data({p: map_contents[x][y]})
         
         if not success:
             bot.recalculate_path()
@@ -318,7 +333,10 @@ while window_valid:
 
 
     if not bot.path_stack:
-        bot.target = start
+        if bot.target == start:
+            bot.target = target
+        else:
+            bot.target = start
         bot.recalculate_path()
 
 
@@ -341,18 +359,27 @@ while window_valid:
             tile_display_size, tile_display_size
         ))
     
-    pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in start], 5)
-    pygame.draw.circle(screen, RED, [(i+0.5)*tile_display_size for i in target], 5)
+    pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in start], 2)
+    pygame.draw.circle(screen, RED, [(i+0.5)*tile_display_size for i in target], 2)
 
-    pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in bot.position], 10)
+    pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in bot.position], 4)
+
+    for node in bot._closed.values():
+        if not node.parent:
+            continue
+
+        pygame.draw.line(screen, GREEN,
+            [(j+0.5)*tile_display_size for j in node.pos],
+            [(j+0.5)*tile_display_size for j in node.parent.pos],
+        )
 
     for i in range(len(bot.path_stack)-1):
-        pygame.draw.line(screen, GREEN,
+        pygame.draw.line(screen, BLUE,
             [(j+0.5)*tile_display_size for j in bot.path_stack[i]],
             [(j+0.5)*tile_display_size for j in bot.path_stack[i+1]],
         )
     if bot.path_stack:
-        pygame.draw.line(screen, GREEN,
+        pygame.draw.line(screen, BLUE,
             [(i+0.5)*tile_display_size for i in bot.position],
             [(i+0.5)*tile_display_size for i in bot.path_stack[-1]]
         )
