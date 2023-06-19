@@ -3,13 +3,13 @@ import pygame
 
 # waypoints = []
 
-width = 20
+width = 30
 height = 20
 
-# start = (random.randint(0, width-1), random.randint(0, height-1))
-# target = (random.randint(0, width-1), random.randint(0, height-1))
-start = (0, 0)
-target = (width-1, height-1)
+start = (random.randint(0, width-1), random.randint(0, height-1))
+target = (random.randint(0, width-1), random.randint(0, height-1))
+# start = (0, 0)
+# target = (width-1, height-1)
 
 EMPTY = "  "
 BLOCKED = "[]"
@@ -104,6 +104,10 @@ class Pathfinder:
             self.map_data[location] = data[location]
     
     def recalculate_path(self, max_depth=1000):
+        if self.position == self.target:
+            self._planned_path_stack = []
+            return
+
         # (x, y) : Node
         closed_locations = {}
         open_locations = {}
@@ -133,8 +137,6 @@ class Pathfinder:
 
             # add more locations
             for location in self.get_possible_moves(best_location):
-                if location in self.map_data:
-                    print("BLOCKED")
                 if location in self.map_data and self.map_data[location] == BLOCKED:
                     continue
                 if location in closed_locations:
@@ -183,13 +185,13 @@ class Pathfinder:
 
 bot = Pathfinder(target, start)
 
-for x in range(width):
-    for y in range(height):
-        bot.add_map_data({(x, y): map_contents[x][y]})
+# for x in range(width):
+#     for y in range(height):
+#         bot.add_map_data({(x, y): map_contents[x][y]})
 
-bot.recalculate_path()
+# bot.recalculate_path()
 
-print(bot.map_data)
+# print(bot.map_data)
 
 
 # Colors
@@ -227,6 +229,13 @@ while window_valid:
         elif event.type == pygame.KEYDOWN:
             # if event.key == pygame.key.K_SPACE:
             bot.move()
+            for location in bot.get_possible_moves(bot.position):
+                try:
+                    bot.add_map_data({location: map_contents[location[0]][location[1]]})
+                except IndexError:
+                    pass
+            bot.recalculate_path()
+
 
 
     screen.fill(GREY)
