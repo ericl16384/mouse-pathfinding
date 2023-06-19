@@ -9,13 +9,11 @@ height = 20
 start = (random.randint(0, width-1), random.randint(0, height-1))
 target = (random.randint(0, width-1), random.randint(0, height-1))
 
-current = start
-
 EMPTY = "  "
 BLOCKED = "[]"
 EDGE = "XX"
-START = "@@"
-END = "()"
+START = EMPTY#"@@"
+END = EMPTY#"()"
 
 def create_map():
     global map_contents
@@ -57,13 +55,23 @@ create_map()
 
 
 class Pathfinder:
-    def __init__(self, target, current, map_data):
+    class Node:
+        def __init__(self, location, parent, g, h):
+            self.location = location
+            self.parent = parent
+            self.f = g + h
+            self.g = g
+            self.h = h
+
+    def __init__(self, target, position, map_data=None):
         self.target = target
-        self.current = current
+        self.position = position
         self.map_data = {}
-        self.add_map_data(map_data)
+        if map_data:
+            self.add_map_data(map_data)
 
         self.__planned_path = []
+        self.recalculate_path()
     
     def next_move(self):
         pass
@@ -73,7 +81,7 @@ class Pathfinder:
             self.map_data[location] = data[location]
     
     def recalculate_path(self):
-        pos = self.current
+        max_opens = 1000
 
         # (x, y) : f
         closed_locations = {}
@@ -84,12 +92,15 @@ class Pathfinder:
         # (x, y) : (x, y)
         connections = {}
 
-        while pos != self.target:
+        open_locations[self.position] = (0, self.calculate_h_cost(self.position))
+
+        locations_opened = 0
+        while locations_opened < max_opens:
             # find cheapest node
             best_location = None
             best_cost = 10**100
             for location in open_locations:
-                # # g = abs(pos[0] - self.current[0]) + abs(pos[1] - self.current[1])
+                # # g = abs(pos[0] - self.position[0]) + abs(pos[1] - self.position[1])
                 # h = abs(pos[0] - self.target[0]) + abs(pos[1] - self.target[1])
                 # open_locations[location] = (g, h)
                 g, h = open_locations[location]
@@ -98,6 +109,10 @@ class Pathfinder:
                 if f < best_cost:
                     best_cost = f
                     best_location = location
+            
+            locations_opened += 1
+
+            prev_g = open_locations[best_location][0]
 
             # bookkeeping
             closed_locations[best_location] = open_locations[best_location]
@@ -105,15 +120,30 @@ class Pathfinder:
 
             # add more locations
             for location in self.get_possible_moves(best_location):
-                if self.map_data[location] == BLOCKED:
+                if location in self.map_data and self.map_data[location] == BLOCKED:
                     continue
                 if location in closed_locations:
                     continue
                 if location == self.target:
                     assert False # TODO
+                
+                new_g = prev_g + 1
 
-                if k
+                if location in open_locations:
+                    if new_g < open_locations[location][0]:
+                        h = open_locations[location][1]
+                        open_locations[location] = (new_g, h)
+                else:
 
+
+            print(open_locations)
+            print(closed_locations)
+            return
+
+
+
+    def calculate_h_cost(self, location):
+        return abs(location[0] - self.target[0]) + abs(location[1] - self.target[1])
 
     def get_possible_moves(self, position):
         x, y = position
@@ -125,7 +155,7 @@ class Pathfinder:
         )
 
 
-
+bot = Pathfinder(target, start)
 
 
 # Colors
@@ -160,6 +190,7 @@ while window_valid:
         if event.type == pygame.QUIT:  # If user clicked close
             window_valid = False  # Flag that we are done so we exit this loop
 
+
     screen.fill(GREY)
 
     for x, column in enumerate(map_contents):
@@ -173,5 +204,8 @@ while window_valid:
                 x*tile_display_size, y*tile_display_size,
                 tile_display_size, tile_display_size
             ))
+
+    pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in bot.position], 10)
+
     
     pygame.display.flip()
