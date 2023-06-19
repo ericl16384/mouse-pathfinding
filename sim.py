@@ -138,7 +138,7 @@ class Pathfinder:
         for location in data:
             self.map_data[location] = data[location]
     
-    def recalculate_path(self, max_depth=1000):
+    def recalculate_path(self, max_depth=10000):
         self._open = {}
         self._closed = {}
 
