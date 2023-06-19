@@ -11,9 +11,11 @@ height = 20
 start = (1, 1)
 target = (width-2, height-2)
 
-EMPTY = "  "
-BLOCKED = "[]"
-EDGE = "XX"
+density = 0.5
+
+EMPTY = True
+BLOCKED = False
+EDGE = BLOCKED#"XX"
 START = EMPTY#"@@"
 END = EMPTY#"()"
 
@@ -23,15 +25,19 @@ def create_map():
     for x in range(width):
         map_contents.append([])
         for y in range(height):
-            if random.random() < 0.6:
-                content = EMPTY
-            else:
-                content = BLOCKED
-            
             if x == start[0] and y == start[1]:
                 content = START
-            if x == target[0] and y == target[1]:
+            elif x == target[0] and y == target[1]:
                 content = END
+
+            elif x == 0 or y == 0 or x == width-1 or y == height-1:
+                content = BLOCKED
+            
+
+            elif random.random() < density:
+                content = BLOCKED
+            else:
+                content = EMPTY
 
             map_contents[x].append(content)
 
@@ -78,8 +84,8 @@ class Pathfinder:
             trace.reverse()
             return trace
     
-    class MaxDepthReached(Exception):
-        "Raised when pathfinding search fails"
+    class NoPathFound(Exception):
+        "Raised when pathfinding search fails, either from an impossible map or from a max depth escape"
         pass
 
     def __init__(self, target, position, map_data=None):
@@ -91,13 +97,20 @@ class Pathfinder:
 
         self._planned_path_stack = []
         self.recalculate_path()
+
+        self.last_move = self.position
     
     def move(self):
+        self.last_move = self.position
         if len(self._planned_path_stack) > 0:
             self.position = self._planned_path_stack.pop().pos
             return True
         else:
             return False
+    
+    def apply_collision(self):
+        self.position = self.last_move
+        self._planned_path_stack = []
 
     def add_map_data(self, data):
         for location in data:
@@ -117,7 +130,7 @@ class Pathfinder:
         depth = 1
         while depth < max_depth:
             if len(open_locations) == 0:
-                raise Pathfinder.MaxDepthReached
+                raise Pathfinder.NoPathFound
 
             # find cheapest node
             best_location = None
@@ -157,6 +170,8 @@ class Pathfinder:
                     node = self.Node(location, best_node, best_node.g + 1, self.calculate_h_cost(location))
                     open_locations[location] = node
                     depth += 1
+
+                    # print(self.map_data[location])
                 
                     if location == self.target:
                         # target found!
@@ -169,7 +184,7 @@ class Pathfinder:
             # print(closed_locations)
             # return
     
-        raise self.MaxDepthReached
+        raise self.NoPathFound
 
 
 
@@ -188,16 +203,12 @@ class Pathfinder:
 
 bot = Pathfinder(target, start)
 
-for x in range(-1, width+1):
-    bot.add_map_data({(x, -1): BLOCKED, (x, height): BLOCKED})
-for y in range(-1, height+1):
-    bot.add_map_data({(-1, y): BLOCKED, (width, y): BLOCKED})
-
-for location in bot.get_possible_moves(bot.position):
-    try:
-        bot.add_map_data({location: map_contents[location[0]][location[1]]})
-    except IndexError:
-        pass
+# for location in bot.get_possible_moves(bot.position):
+#     try:
+#         bot.add_map_data({location: map_contents[location[0]][location[1]]})
+#     except IndexError:
+#         pass
+bot.add_map_data({bot.position: EMPTY})
 
 bot.recalculate_path()
 
@@ -247,15 +258,23 @@ while window_valid:
 
             bot.move()
 
-            for location in bot.get_possible_moves(bot.position):
+            bot.add_map_data({bot.position: map_contents[bot.position[0]][bot.position[1]]})
+            if map_contents[bot.position[0]][bot.position[1]] == BLOCKED:
+                bot.apply_collision()
                 try:
-                    bot.add_map_data({location: map_contents[location[0]][location[1]]})
-                except IndexError:
+                    bot.recalculate_path()
+                except Pathfinder.NoPathFound:
                     pass
+
+            # for location in bot.get_possible_moves(bot.position):
+            #     try:
+            #         bot.add_map_data({location: map_contents[location[0]][location[1]]})
+            #     except IndexError:
+            #         pass
                 
             try:
                 bot.recalculate_path()
-            except Pathfinder.MaxDepthReached:
+            except Pathfinder.NoPathFound:
                 pass
 
 
