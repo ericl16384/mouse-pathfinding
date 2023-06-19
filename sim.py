@@ -3,13 +3,13 @@ import pygame
 
 # waypoints = []
 
-width = 30
+width = 35
 height = 20
 
-start = (random.randint(0, width-1), random.randint(0, height-1))
-target = (random.randint(0, width-1), random.randint(0, height-1))
-# start = (0, 0)
-# target = (width-1, height-1)
+# start = (random.randint(0, width-1), random.randint(0, height-1))
+# target = (random.randint(0, width-1), random.randint(0, height-1))
+start = (1, 1)
+target = (width-2, height-2)
 
 EMPTY = "  "
 BLOCKED = "[]"
@@ -116,6 +116,9 @@ class Pathfinder:
 
         depth = 1
         while depth < max_depth:
+            if len(open_locations) == 0:
+                raise Pathfinder.MaxDepthReached
+
             # find cheapest node
             best_location = None
             best_cost = 10**100
@@ -185,11 +188,17 @@ class Pathfinder:
 
 bot = Pathfinder(target, start)
 
+for x in range(-1, width+1):
+    bot.add_map_data({(x, -1): BLOCKED, (x, height): BLOCKED})
+for y in range(-1, height+1):
+    bot.add_map_data({(-1, y): BLOCKED, (width, y): BLOCKED})
+
 for location in bot.get_possible_moves(bot.position):
     try:
         bot.add_map_data({location: map_contents[location[0]][location[1]]})
     except IndexError:
         pass
+
 bot.recalculate_path()
 
 # for x in range(width):
@@ -235,13 +244,19 @@ while window_valid:
             break
         elif event.type == pygame.KEYDOWN:
             # if event.key == pygame.key.K_SPACE:
+
             bot.move()
+
             for location in bot.get_possible_moves(bot.position):
                 try:
                     bot.add_map_data({location: map_contents[location[0]][location[1]]})
                 except IndexError:
                     pass
-            bot.recalculate_path()
+                
+            try:
+                bot.recalculate_path()
+            except Pathfinder.MaxDepthReached:
+                pass
 
 
 
