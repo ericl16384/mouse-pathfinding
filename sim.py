@@ -13,9 +13,9 @@ target = (width-2, height-2)
 
 density = 0.4
 
-wall_destroying_cost = 100
+wall_destroying_cost = 1000
 
-autoplay_interval = 0.2
+autoplay_interval = 0#.5
 
 EMPTY = 0
 WALL = 1
@@ -89,8 +89,12 @@ class Pathfinder:
             path.reverse()
             return path
     
-    class NoPathFound(Exception):
-        "Raised when pathfinding search fails, either from an impossible map or from a max depth escape"
+    class NoPath(Exception):
+        "Raised when all pathfinding nodes have been searched, indicating no solution"
+        pass
+    
+    class MaxDepthReached(Exception):
+        "Raised when pathfinding search fails from a max depth escape"
         pass
 
     def __init__(self, target, position, map_data=None):
@@ -143,7 +147,7 @@ class Pathfinder:
         for location in data:
             self.map_data[location] = data[location]
     
-    def recalculate_path(self, max_depth=1000):
+    def recalculate_path(self, max_depth=10000):
         if self.position == self.target:
             self.path_stack = []
             return
@@ -157,7 +161,7 @@ class Pathfinder:
         depth = 1
         while depth < max_depth:
             if len(open_locations) == 0:
-                raise Pathfinder.NoPathFound
+                raise Pathfinder.NoPath
 
             # find cheapest node
             best_location = None
@@ -216,7 +220,7 @@ class Pathfinder:
             # print(closed_locations)
             # return
     
-        raise self.NoPathFound
+        raise self.MaxDepthReached
 
 
 
@@ -331,10 +335,13 @@ while window_valid:
     bot.add_map_data({bot.position: map_contents[bot.position[0]][bot.position[1]]})
     if map_contents[bot.position[0]][bot.position[1]] == WALL:
         bot.apply_collision()
-        try:
-            bot.recalculate_path()
-        except Pathfinder.NoPathFound:
-            pass
+        bot.recalculate_path()
+    
+
+
+    if not bot.path_stack:
+        bot.target = start
+        bot.recalculate_path()
 
 
 
@@ -356,6 +363,7 @@ while window_valid:
             tile_display_size, tile_display_size
         ))
     
+    pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in start], 5)
     pygame.draw.circle(screen, RED, [(i+0.5)*tile_display_size for i in target], 5)
 
     pygame.draw.circle(screen, BLUE, [(i+0.5)*tile_display_size for i in bot.position], 10)
@@ -364,6 +372,11 @@ while window_valid:
         pygame.draw.line(screen, GREEN,
             [(j+0.5)*tile_display_size for j in bot.path_stack[i]],
             [(j+0.5)*tile_display_size for j in bot.path_stack[i+1]],
+        )
+    if bot.path_stack:
+        pygame.draw.line(screen, GREEN,
+            [(i+0.5)*tile_display_size for i in bot.position],
+            [(i+0.5)*tile_display_size for i in bot.path_stack[-1]]
         )
 
     
