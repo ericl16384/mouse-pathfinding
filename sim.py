@@ -3,8 +3,8 @@ import pygame
 
 # waypoints = []
 
-width = 35
-height = 20
+width = 7#35
+height = 7#20
 
 # start = (random.randint(0, width-1), random.randint(0, height-1))
 # target = (random.randint(0, width-1), random.randint(0, height-1))
@@ -15,7 +15,7 @@ density = 0.4
 
 wall_destroying_cost = 1000
 
-autoplay_interval = 0#.5
+autoplay_interval = 0.5
 
 EMPTY = 0
 WALL = 1
@@ -111,7 +111,6 @@ class Pathfinder:
 
     def do_action(self):
         if len(self.path_stack) > 0:
-            # self.last_pos = self.position
             next_pos = self.path_stack[-1]
             next_tile = None
             if next_pos in self.map_data:
@@ -124,24 +123,11 @@ class Pathfinder:
             
             # move
             else:
-                # self.position = next_pos.pos
                 self.path_stack.pop()
                 return ("move", next_pos)
             
         else:
             return ()
-    
-    # def move(self):
-    #     self.last_pos = self.position
-    #     if len(self.path_stack) > 0:
-    #         self.position = self.path_stack.pop().pos
-    #         return True
-    #     else:
-    #         return False
-    
-    # def apply_collision(self):
-    #     self.position = self.last_pos
-    #     self.path_stack = []
 
     def add_map_data(self, data):
         for location in data:
@@ -168,11 +154,6 @@ class Pathfinder:
             best_cost = 10**100
             best_node = None
             for location, node in open_locations.items():
-                # # g = abs(pos[0] - self.position[0]) + abs(pos[1] - self.position[1])
-                # h = abs(pos[0] - self.target[0]) + abs(pos[1] - self.target[1])
-                # open_locations[location] = (g, h)
-                # g, h = open_locations[location]
-
                 if node.f < best_cost:
                     best_cost = node.f
                     best_location = location
