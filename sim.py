@@ -11,7 +11,7 @@ height = 20
 start = (1, 1)
 target = (width-2, height-2)
 
-density = 0.5
+density = 0.4
 
 wall_destroying_cost = 100
 
