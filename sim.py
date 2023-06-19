@@ -23,7 +23,7 @@ def create_map():
     for x in range(width):
         map_contents.append([])
         for y in range(height):
-            if random.random() < 0.75:
+            if random.random() < 0.6:
                 content = EMPTY
             else:
                 content = BLOCKED
@@ -291,3 +291,7 @@ while window_valid:
 
     
     pygame.display.flip()
+
+    
+
+    assert map_contents[bot.position[0]][bot.position[1]] == EMPTY
